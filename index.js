@@ -11,14 +11,13 @@ program
   .option('-f, --full-response', 'return the full response')
   .option('-d, --doi <DOI>', 'search by DOI')
   .option('-q, --query <query>', 'search by using the provide string query')
-  .option('--ls', 'show local papers');
+  .option('--ls', 'show local papers')
+  .option('-i, --interactive', 'interactive query');
 
   program.parse(process.argv);
 
 let opts = program.opts();
 console.log(opts);
-
-//crossRef.works({ query: searchString, rows: 1 }, (err, objs, nextOpts, done) => {
 
 if(opts.doi){ //searching for a DOI.
   cf.work(opts.doi, (err, data)=>{
@@ -60,5 +59,37 @@ if(opts.doi){ //searching for a DOI.
         });
       }
     }
+  });
+} else if (opts.interactive) {
+  inquirer.registerPrompt('autocomplete', require('inquirer-autocomplete-prompt'));
+  inquirer
+  .prompt([
+    {
+      type: 'autocomplete',
+      name: 'query',
+      suggestOnly: false,
+      message: 'Query Search?',
+      source: searchQuery,
+      pageSize: 10,
+    },
+  ])
+  .then(function(answers) {
+    console.log(JSON.stringify(answers, null, 2));
+  });
+}
+
+function searchQuery(answers, input) {
+  input = input || 'a';
+  return new Promise(function(resolve) {
+    cf.works({ query: input, rows: 10 }, (err, objs, nextOpts, done) => {
+      let ans = [];
+      if(objs){
+        objs.forEach((data)=>{
+          if(!data.title || !data.author || !data.link) return 0;
+          ans.push(data.title[0])
+        });
+      }
+      resolve(ans);
+    });
   });
 }
