@@ -9,10 +9,14 @@
   "author": "Aero Reyna",
   "license": "ISC",
   "dependencies": {
+    "bibtex-parse-js": "0.0.24",
     "commander": "^3.0.0",
     "crossref": "^1.2.1",
+    "doi2bib": "^1.0.8",
     "dotenv": "^8.0.0",
+    "fuse.js": "^3.4.5",
     "inquirer": "^6.5.0",
-    "inquirer-autocomplete-prompt": "^1.0.1"
+    "inquirer-autocomplete-prompt": "^1.0.1",
+    "open": "^6.4.0"
   }
 }

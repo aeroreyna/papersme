@@ -4,6 +4,21 @@ const cf = require('crossref');
 const inquirer = require('inquirer');
 const commander = require('commander');
 const core = require("./core.js")
+
+// For Local Search
+const open = require('open');
+const fs = require('fs');
+const fusejs = require('fuse.js');
+const obj2arr = (obj)=>{
+  let arr = [];
+  Object.keys(obj).forEach((k)=>{
+    let temp = obj[k]
+    temp.key = k;
+    arr.push(temp);
+  });
+  return arr;
+}
+
 const program = new commander.Command();
 program.version('1.0.0')
        .description("A command tool to work with scientfic papers");
@@ -14,7 +29,7 @@ program
   .option('-b, --bib', 'return bib')
   .option('-q, --query <query>', 'search by using the provide string query')
   .option('-i, --interactive', 'interactive query')
-  .option('--ls', 'show local papers');
+  .option('--ls <path>', 'show local papers');
 
 program.parse(process.argv);
 
@@ -89,5 +104,59 @@ if(opts.doi){ //searching for a DOI.
   ])
   .then(function(answers) {
     filterQuery([core.choosenQuery(answers.query)]);
+  });
+} else if (opts.ls) {
+  core.getLocalWorks(opts.ls).then((works)=>{
+    worksArr = obj2arr(works);
+    var options = {
+      keys: ['bib.entryTags.title', 'bib.entryTags.author', 'bib.entryTags.doi'],
+      id: 'key'
+    }
+    var fuse = new fusejs(worksArr, options)
+    let searchQuery = function(answers, input) {
+      //console.log(works[0].bib.entryTags)
+      //input = input || 'a';
+      return new Promise(function(resolve) {
+        let r = fuse.search(input)
+        let ans = [];
+        if(r){
+          r.forEach((w)=>{
+            ans.push(works[w].bib.entryTags.doi + ": " + works[w].bib.entryTags.title + " " + works[w].bib.entryTags.author + " " + works[w].bib.entryTags.year)
+          })
+        }
+        resolve(ans)
+      });
+    }
+
+    inquirer.registerPrompt('autocomplete', require('inquirer-autocomplete-prompt'));
+    inquirer
+    .prompt([
+      {
+        type: 'autocomplete',
+        name: 'query',
+        suggestOnly: false,
+        message: 'Query Local Search?',
+        source: searchQuery,
+        pageSize: 5,
+      },
+      {
+      type: 'list',
+      name: 'action',
+      message: 'What do you want to open?',
+      choices: ['pdf', 'notes', 'pdf & notes']
+    }])
+    .then(function(answers) {
+      let doi = answers.query.substring(0, answers.query.indexOf(":"))
+      doi = doi.replace(/\//g, "@")
+      if(answers.action.includes("pdf") && fs.existsSync(opts.ls + doi + ".pdf")){
+        console.log("Opening pdf:" + doi)
+        open(opts.ls + doi + ".pdf")
+      }
+      if(answers.action.includes("notes") && fs.existsSync(opts.ls + doi + ".md")){
+        console.log("Opening notes:" + doi)
+        open(opts.ls + doi + ".md")
+      }
+    });
+
   });
 }
